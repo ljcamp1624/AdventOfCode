@@ -43,9 +43,9 @@ function out = CheckPass(pass)
     if sum(vec) == 0
         out = 0;
         return;
-    elseif sum(vec(~vec2)) == 0
-        out = 0;
-        return;
+%     elseif sum(vec(~vec2)) == 0
+%         out = 0;
+%         return;
     end
     %% check no decrease
     flag = 1;
