@@ -14,16 +14,16 @@ for i = 1:size(nameList, 1)
     adjMat(i, :) = idx2';
 end
 %%
-% for n = 1:size(adjMat, 2)
-%     for i = 1:size(adjMat, 2)
-%         idx1 = adjMat(i, :);
-%         idx2 = adjMat(:, i);
-%         adjMat(idx2, idx1) = true;
-% %         for j = 1:length(idx2)
-% %             adjMat(idx2(j), idx1) = 1;
-% %         end
-%     end
-% end
+for n = 1:size(adjMat, 2)
+    for i = 1:size(adjMat, 2)
+        idx1 = adjMat(i, :);
+        idx2 = adjMat(:, i);
+        adjMat(idx2, idx1) = true;
+%         for j = 1:length(idx2)
+%             adjMat(idx2(j), idx1) = 1;
+%         end
+    end
+end
 %%
 symAdjMat = adjMat | adjMat';
 fw_symAdjMat = FloydWarshall(double(symAdjMat));

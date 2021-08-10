@@ -1,5 +1,6 @@
 #%% Advent of code 2019
 import numpy as np
+import scipy.sparse as sp
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -265,10 +266,125 @@ x = [3,225,1,225,6,6,1100,1,238,225,104,0,1002,148,28,224,1001,224,-672,224,4,22
 y = x.copy();
 y = run_intcode2(y);
 
+#%%
+# orbits = pd.read_csv(r'C:\Users\Leonard\Documents\GitHub\AdventOfCode\2019_py3\q6_test.csv', header=None)
+orbits = pd.read_csv(r'C:\Users\Leonard\Documents\GitHub\AdventOfCode\2019_py3\q6.csv', header=None)
+orbits = orbits[0].str.split(')', expand=True).rename(columns={0:'in', 1:'out'});
+objects = np.unique(np.append(orbits.loc[:, 'in'].unique(), orbits.loc[:, 'out'].unique()));
+objects = pd.DataFrame({'ID': np.arange(len(objects)), 'obj': objects});
+orbits = orbits.merge(objects, how='left', left_on='in', right_on='obj').rename(columns={'ID': 'in_ID'}).drop(columns='obj')
+orbits = orbits.merge(objects, how='left', left_on='out', right_on='obj').rename(columns={'ID': 'out_ID'}).drop(columns='obj')
+adj_mat = sp.coo_matrix((np.ones(orbits['in_ID'].shape), (orbits['out_ID'], orbits['in_ID'])), shape=(len(objects), len(objects)))
+idx = (objects['obj']=='YOU') | (objects['obj']=='SAN')
 
+dist_mat = sp.csgraph.floyd_warshall(sp.csc_matrix(adj_mat), directed=True);
+dist_mat[np.isinf(dist_mat)] = np.nan;
+print(np.sum(dist_mat > 0))
 
+adj_mat2 = adj_mat.todense() + adj_mat.transpose().todense();
+dist_mat = sp.csgraph.floyd_warshall(sp.csc_matrix(adj_mat2), directed=True);
+print(dist_mat[idx][:, idx])
 
+#%%
 
+def int2list(num):
+    return [int(s) for s in str(num)];
 
+def list2int(array):
+    return int("".join([str(n) for n in array]));
 
+def get_instruction(inst):
+    inst = int2list(inst);
+    while len(inst) < 5:
+        inst.insert(0, 0);
+    mode = [inst[2], inst[1], inst[0]];
+    inst = list2int(inst[3:]);
+    return inst, mode;
+
+def get_val_pos(x, i, mode):
+    val = ['.', '.', '.'];
+    pos = ['.', '.', '.'];
+    for j in range(len(mode)):
+        if mode[j] == 0:
+            try:
+                pos[j] = x[i+j+1];
+            except:
+                1
+            try:
+                val[j] = x[pos[j]];
+            except:
+                1
+        elif mode[j] == 1:
+            try:
+                val[j] = x[i+j+1];
+            except:
+                1
+    return val, pos;
+
+def run_intcode3(code, code_input):
+    
+    i = 0;
+    x = code.copy();
+    
+    input_idx = 0;
+    code_output = np.array([]);
+    
+    while True:
+        
+        inst = x[i];
+        
+        if inst == 99:
+            break;
+        else:
+            inst, mode = get_instruction(inst);
+            val, pos = get_val_pos(x, i, mode);            
+
+        if inst == 1:
+            x[pos[2]] = val[0]+val[1];
+            i = i + 4;
+        elif inst == 2:
+            x[pos[2]] = val[0]*val[1];
+            i = i + 4;
+        elif inst == 3:
+            curr_input = code_input[input_idx]
+            x[pos[0]] = curr_input;
+            i = i + 2;
+            input_idx = input_idx + 1;
+        elif inst == 4:
+            code_output = np.append(code_output, val[0]);
+            i = i + 2;
+        elif inst == 5:
+            if val[0] != 0:
+                i = val[1];
+            else:
+                i = i + 3;
+        elif inst == 6:
+            if val[0] == 0:
+                i = val[1];
+            else:
+                i = i + 3;
+        elif inst == 7:
+            if val[0] < val[1]:
+                x[pos[2]] = 1;
+            else:
+                x[pos[2]] = 0;
+            i = i + 4;
+        elif inst == 8:
+            if val[0] == val[1]:
+                x[pos[2]] = 1;
+            else:
+                x[pos[2]] = 0;
+            i = i + 4;
+        else: 
+            print('error');            
+            
+    return x, code_output;
+
+# x = np.array([3,8,1001,8,10,8,105,1,0,0,21,38,63,88,97,118,199,280,361,442,99999,3,9,1002,9,3,9,101,2,9,9,1002,9,4,9,4,9,99,3,9,101,3,9,9,102,5,9,9,101,3,9,9,1002,9,3,9,101,3,9,9,4,9,99,3,9,1002,9,2,9,1001,9,3,9,102,3,9,9,101,2,9,9,1002,9,4,9,4,9,99,3,9,102,2,9,9,4,9,99,3,9,102,4,9,9,101,5,9,9,102,2,9,9,101,5,9,9,4,9,99,3,9,1002,9,2,9,4,9,3,9,101,1,9,9,4,9,3,9,102,2,9,9,4,9,3,9,101,1,9,9,4,9,3,9,101,2,9,9,4,9,3,9,1001,9,2,9,4,9,3,9,102,2,9,9,4,9,3,9,102,2,9,9,4,9,3,9,101,1,9,9,4,9,3,9,102,2,9,9,4,9,99,3,9,101,1,9,9,4,9,3,9,102,2,9,9,4,9,3,9,1001,9,2,9,4,9,3,9,1001,9,2,9,4,9,3,9,1001,9,1,9,4,9,3,9,1001,9,1,9,4,9,3,9,1001,9,2,9,4,9,3,9,102,2,9,9,4,9,3,9,1002,9,2,9,4,9,3,9,1001,9,1,9,4,9,99,3,9,1002,9,2,9,4,9,3,9,1002,9,2,9,4,9,3,9,102,2,9,9,4,9,3,9,1002,9,2,9,4,9,3,9,1001,9,1,9,4,9,3,9,102,2,9,9,4,9,3,9,102,2,9,9,4,9,3,9,101,1,9,9,4,9,3,9,102,2,9,9,4,9,3,9,102,2,9,9,4,9,99,3,9,102,2,9,9,4,9,3,9,101,1,9,9,4,9,3,9,1002,9,2,9,4,9,3,9,1002,9,2,9,4,9,3,9,102,2,9,9,4,9,3,9,1002,9,2,9,4,9,3,9,1001,9,2,9,4,9,3,9,101,2,9,9,4,9,3,9,1001,9,2,9,4,9,3,9,101,1,9,9,4,9,99,3,9,101,1,9,9,4,9,3,9,101,1,9,9,4,9,3,9,101,1,9,9,4,9,3,9,102,2,9,9,4,9,3,9,1001,9,1,9,4,9,3,9,1001,9,2,9,4,9,3,9,101,2,9,9,4,9,3,9,102,2,9,9,4,9,3,9,1001,9,1,9,4,9,3,9,1001,9,2,9,4,9,99]);
+x = np.array([3,31,3,32,1002,32,10,32,1001,31,-2,31,1007,31,0,33,1002,33,7,33,1,33,31,31,1,32,31,31,4,31,99,0,0,0]);
+phase_input = np.array([1,0,4,3,2]);
+x_output = 0;
+for idx in range(5):
+    y, x_output = run_intcode3(x, np.append(phase_input[idx], x_output));
+    print(x_output)
 
