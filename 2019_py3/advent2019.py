@@ -1,16 +1,17 @@
 #%% Advent of code 2019
-import numpy as np
-import scipy.sparse as sp
-import pandas as pd
-import matplotlib.pyplot as plt
-import itertools
-import time
-from matplotlib.animation import FuncAnimation
+# import numpy as np
+# import scipy.sparse as sp
+# import pandas as pd
+# import matplotlib.pyplot as plt
+# import itertools
+# import time
+# from matplotlib.animation import FuncAnimation
 
 #%% Question 1
 def get_fuel(mass):
     fuel = np.max([np.floor(mass/3) - 2, 0]);
     return fuel;
+
 def get_total_fuel(mass):
     fuel = get_fuel(mass);
     total_fuel = fuel;
