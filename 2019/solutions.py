@@ -79,6 +79,185 @@ def next_pass(p):
         else:
             return convert_int(convert_pass(p) + 1)
 
+#%%
+class intcode_computer:
+
+    def __init__(self, intcode, index=0, inputs=[], outputs=[], debug=False):
+        self.intcode = intcode
+        self.index = index
+        self.inputs = inputs
+        self.outputs = outputs
+        self.debug = debug
+        
+    def process_block(self):
+        # process the current code block, including interpreting the code, reading the outputs, generating the outputs, and updating the index
+    
+    def process_code(code):
+        full_code = [int(x) for x in str(code)]
+        for i in range(5-len(full_code)):
+            full_code.insert(0,0)
+        full_code = "".join([str(x) for x in full_code])
+        opcode = int(full_code[-2:])
+        params = [int(x) for x in full_code[:3][::-1]]
+        return opcode, params
+    
+    
+        
+#%%
+def intcode_computer(intcode, intcode_input_list, intcode_output_list=[], idx=0, debug=False):
+    
+    
+    def process_code(code):
+        full_code = [int(x) for x in str(code)]
+        for i in range(5-len(full_code)):
+            full_code.insert(0,0)
+        full_code = "".join([str(x) for x in full_code])
+        opcode = int(full_code[-2:])
+        params = [int(x) for x in full_code[:3][::-1]]
+        return opcode, params
+    
+    
+    def get_inputs(idx, opcode, params):
+        inputs = []
+        if opcode in (1, 2, 7, 8):
+            for p, i in zip(params, range(len(params))):
+                if (i < 2):
+                    if p == 0:
+                        inputs.append(intcode[intcode[idx + i + 1]])
+                    elif p == 1:
+                        inputs.append(intcode[idx + i + 1])
+                elif i == 2:
+                    inputs.append(intcode[idx + i + 1]) # exception for writing to memory
+        elif opcode == 3:
+            inputs.append(intcode[idx + 1]) # exception for writing to memory
+        elif opcode == 4:
+            for p, i in zip(params, range(len(params))):
+                if (i < 1):
+                    if p == 0:
+                        inputs.append(intcode[intcode[idx + i + 1]])
+                    elif p == 1:
+                        inputs.append(intcode[idx + i + 1])
+        elif opcode in (5, 6):
+            for p, i in zip(params, range(len(params))):
+                if (i < 2):
+                    if p == 0:
+                        inputs.append(intcode[intcode[idx + i + 1]])
+                    elif p == 1:
+                        inputs.append(intcode[idx + i + 1])
+        return inputs
+    
+    
+    def extend_intcode(d):
+        while len(intcode) < (d + 1):
+            intcode.append(0)
+    
+    
+    def get_next_idx(idx, opcode):
+        if opcode in (1, 2, 7, 8):
+            n = 4
+        elif opcode in (3, 4):
+            n = 2
+        elif opcode in (5, 6):
+            n = 3
+        return int(idx + n)
+    
+    
+    def perform_operations(idx, opcode, inputs):
+        
+        # wrap up the iteration (might get overwritten later)
+        next_idx = get_next_idx(idx, opcode)
+        output = None
+        output_idx = None
+        
+        # perform writing operations
+        if opcode in (1, 2, 7, 8):
+            if opcode == 1:
+                output = inputs[0] + inputs[1]
+                output_idx = inputs[2]
+            elif opcode == 2:
+                output = inputs[0] * inputs[1]
+                output_idx = inputs[2]
+            elif opcode == 7:
+                if inputs[0] < inputs[1]:
+                    output = 1
+                else: 
+                    output = 0
+                output_idx = inputs[2]
+            elif opcode == 8:
+                if inputs[0] == inputs[1]:
+                    output = 1
+                else: 
+                    output = 0
+                output_idx = inputs[2]
+            extend_intcode(output_idx)
+            intcode[output_idx] = output
+            return next_idx, None
+        elif opcode in (5, 6):
+            if opcode == 5:
+                if inputs[0] != 0:
+                    next_idx = inputs[1]
+            elif opcode == 6:
+                if inputs[0] == 0:
+                    next_idx = inputs[1]
+            return next_idx, None
+        elif opcode == 3:
+            output = intcode_input_list.pop(0)
+            output_idx = inputs[0]
+            extend_intcode(output_idx)
+            intcode[output_idx] = output
+            return next_idx, None
+        elif opcode == 4:
+            output = inputs[0]
+            return next_idx, output
+        else: 
+            raise Exception('bad opcode')
+        
+    
+    def iterate_intcode(idx):
+        code = intcode[idx]
+        opcode, params = process_code(code)
+        inputs = get_inputs(idx, opcode, params)
+        if opcode == 99:
+            return opcode, idx, False, None
+        elif (opcode == 3) & (len(intcode_input_list) == 0):
+            return opcode, idx, False, None
+        next_idx, output = perform_operations(idx, opcode, inputs)
+        return opcode, next_idx, True, output
+     
+    run = True
+    intcode_output_list = []
+    while run:
+        opcode, idx, can_continue, output = iterate_intcode(idx)
+        if not can_continue:
+            return intcode, idx, intcode_output_list, opcode
+        elif opcode == 4:
+            intcode_output_list.append(output)
+
+
+def run_sequential_intcode_computers(n, starting_code, input_array=[]):
+    
+    # initialize computers
+    intcode_list = []
+    for i in range(n):
+        intcode_list.append(starting_code.copy())
+    
+    # initilize inputs
+    input_list = [[x] for x in input_array]
+    input_list[0].append(0)
+    idx_list = [0]*n
+    
+    # run computers
+    while True:
+        for i in range(n):
+            curr_intcode, idx, curr_output, curr_opcode = intcode_computer(intcode_list[i], input_list[i], idx=idx_list[i])
+            intcode_list[i] = curr_intcode
+            idx_list[i] = idx
+            input_list[int(np.mod(i+1,n))] += curr_output
+        if curr_opcode == 99:
+            break
+    return curr_output
+
+
 #%% Question 1
 q1input = read_txt(r'C:\Users\Lenny\Documents\GitHub\AdventOfCode\2019\q1input.txt')[0]
 a = 0
@@ -96,14 +275,14 @@ q2input = convert_intcode(q2input)
 code = q2input.copy()
 code[1] = 12
 code[2] = 2
-code = intcode_computer(code)
+code,a,b,c = intcode_computer(code, [])
 print(code[0])
 for i in range(100):
     for j in range(100):
         code = q2input.copy()
         code[1] = i
         code[2] = j
-        code = intcode_computer(code)
+        code,a,b,c = intcode_computer(code, [])
         if code[0] == 19690720:
             print(100*i + j)
             break
@@ -148,193 +327,24 @@ print(len(p), len(p2))
 q5input = read_txt(r'C:\Users\Lenny\Documents\GitHub\AdventOfCode\2019\q5input.txt')[0]
 q5input = convert_intcode(q5input)
     
-o1, o2 = intcode_computer(q5input.copy(), [1])
+o1, o2, o3, o4 = intcode_computer(q5input.copy(), [1])
 print(o2)
-o1, o2 = intcode_computer(q5input.copy(), [5])
+o1, o2, o3, o4 = intcode_computer(q5input.copy(), [5])
 print(o2)
 
 #%% Question 6
 
-#%% Question 5
+#%% Question 7
 q7input = read_txt(r'C:\Users\Lenny\Documents\GitHub\AdventOfCode\2019\q7input.txt')[0]
 q7input = convert_intcode(q7input)
 
-def intcode_computer(intcode, intcode_input_list, intcode_output_list=[], intcode_idx_override=None, debug=False):
-    
-    
-    def process_code(code):
-        full_code = [int(x) for x in str(code)]
-        for i in range(5-len(full_code)):
-            full_code.insert(0,0)
-        full_code = "".join([str(x) for x in full_code])
-        opcode = int(full_code[-2:])
-        params = [int(x) for x in full_code[:3][::-1]]
-        return opcode, params
-    
-    
-    def get_inputs(idx, opcode, params):
-        if opcode in (1, 2, 7, 8):
-            inputs = []
-            for p, i in zip(params, range(len(params))):
-                if (i < 2):
-                    if p == 0:
-                        inputs.append(intcode[intcode[idx + i + 1]])
-                    elif p == 1:
-                        inputs.append(intcode[idx + i + 1])
-                elif i == 2:
-                    inputs.append(intcode[idx + i + 1]) # exception for writing to memory
-        elif opcode == 3:
-            inputs = []
-            inputs.append(intcode[idx + 1]) # exception for writing to memory
-        elif opcode == 4:
-            inputs = []
-            for p, i in zip(params, range(len(params))):
-                if (i < 1):
-                    if p == 0:
-                        inputs.append(intcode[intcode[idx + i + 1]])
-                    elif p == 1:
-                        inputs.append(intcode[idx + i + 1])
-        elif opcode in (5, 6):
-            inputs = []
-            for p, i in zip(params, range(len(params))):
-                if (i < 2):
-                    if p == 0:
-                        inputs.append(intcode[intcode[idx + i + 1]])
-                    elif p == 1:
-                        inputs.append(intcode[idx + i + 1])
-        return inputs
-    
-    
-    def extend_intcode(d):
-        while len(intcode) < (d + 1):
-            intcode.append(0)
-    
-    
-    def get_next_idx(idx, opcode):
-        if opcode in (1, 2, 7, 8):
-            n = 4
-        elif opcode in (3, 4):
-            n = 2
-        elif opcode in (5, 6):
-            n = 3
-        return int(idx + n)
-    
-    
-    def perform_operations(idx, opcode, inputs):
-        
-        # wrap up the iteration (might get overwritten later)
-        next_idx = get_next_idx(idx, opcode)
-        output = None
-        output_idx = None
-        
-        # perform any operations
-        if opcode == 1:
-            output = inputs[0] + inputs[1]
-            output_idx = inputs[2]
-        elif opcode == 2:
-            output = inputs[0] * inputs[1]
-            output_idx = inputs[2]
-        elif opcode == 3:
-            output = intcode_input_list.pop(0)
-            output_idx = inputs[0]
-        elif opcode == 4:
-            output = inputs[0]
-        elif opcode == 5:
-            if inputs[0] != 0:
-                next_idx = inputs[1]
-        elif opcode == 6:
-            if inputs[0] == 0:
-                next_idx = inputs[1]
-        elif opcode == 7:
-            if inputs[0] < inputs[1]:
-                output = 1
-            else: 
-                output = 0
-            output_idx = inputs[2]
-        elif opcode == 8:
-            if inputs[0] == inputs[1]:
-                output = 1
-            else: 
-                output = 0
-            output_idx = inputs[2]
-        
-        # save any variables
-        if opcode in (1, 2, 3, 7, 8):
-            extend_intcode(output_idx)
-            intcode[output_idx] = output
-            
-        return next_idx, output, output_idx
-        
-    
-    def iterate_intcode(idx):
-        code = intcode[idx]
-        opcode, params = process_code(code)
-        if opcode == 99:
-            return opcode, idx, None, False
-        elif (opcode == 3) & (len(intcode_input_list) == 0):
-            return opcode, idx, None, True
-        inputs = get_inputs(idx, opcode, params)
-        next_idx, output, output_idx = perform_operations(idx, opcode, inputs)
-        return opcode, next_idx, output, False
-     
-    if intcode_idx_override is None:
-        idx = 0
-    else:
-        idx = intcode_idx_override
-    run = True
-    intcode_output_list = []
-    while run:
-        opcode, idx, output, continue_code = iterate_intcode(idx)
-        if opcode == 99:
-            return intcode, idx, intcode_output_list, opcode
-        elif (opcode == 3) & (continue_code):
-            return intcode, idx, intcode_output_list, opcode
-        elif opcode == 4:
-            intcode_output_list.append(output)
-
-
-# n = 5
-# a = []
-# for p in list(itertools.permutations(range(n))):
-#     intcode_list = [q7input.copy()]*n
-#     input_list = [[x] for x in p]
-#     input_list[0].append(0)
-#     for i in range(n):
-#         o1, idx, o2, o3 = intcode_computer(intcode_list[i], input_list[i])
-#         intcode_list[i] = o1
-#         input_list[int(np.mod(i+1,n))].append(o2[-1])
-#     a.append(o2[-1])
-# print(max(a))
-
-
-n = 5
 a = []
-# for p in list(itertools.permutations(range(5, 5+n))):
-
-# intcode_list = [q7input.copy()]*n
-# p = (4,3,2,1,0); intcode_list = [[3,15,3,16,1002,16,10,16,1,16,15,15,4,15,99,0,0]]*n
-# p = (0,1,2,3,4); intcode_list = [[3,23,3,24,1002,24,10,24,1002,23,-1,23,101,5,23,23,1,24,23,23,4,23,99,0,0]]*n
-# p = (1,0,4,3,2); intcode_list = [[3,31,3,32,1002,32,10,32,1001,31,-2,31,1007,31,0,33,1002,33,7,33,1,33,31,31,1,32,31,31,4,31,99,0,0,0]]*n
-p = (9,8,7,6,5); intcode_list = [[3,26,1001,26,-4,26,3,27,1002,27,2,27,1,27,26,27,4,27,1001,28,-1,28,1005,28,6,99,0,0,5]]*n
-input_list = [[x] for x in p]
-input_list[0].append(0)
-idx_list = [0]*n
-end_count = [0]*n
-k = 0
-while True:
-    for i in range(n):
-        o1, idx, o2, o3 = intcode_computer(intcode_list[i], input_list[i], intcode_idx_override=idx_list[i])
-        intcode_list[i] = o1
-        idx_list[i] = idx
-        input_list[int(np.mod(i+1,n))] += o2
-        if o3 == 99:
-            end_count[i] += 1
-    k += 1
-    if sum(end_count) >1000:
-        break
-a.append(o2)
-
+for p in list(itertools.permutations(range(0, 5))):    
+    a.append(run_sequential_intcode_computers(5, q7input, input_array=p)[0])
 print(max(a))
 
-
+a = []
+for p in list(itertools.permutations(range(5, 10))):    
+    a.append(run_sequential_intcode_computers(5, q7input, input_array=p)[0])
+print(max(a))
         
