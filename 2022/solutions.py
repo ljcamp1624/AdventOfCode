@@ -197,4 +197,61 @@ print(signal_processor(q6input).get_packet_idx(4))
 print(signal_processor(q6input).get_packet_idx(14))
     
 #%%
+q7input = read_txt(r'C:\Users\Lenny\Documents\GitHub\AdventOfCode\2022\q7input.txt')[0]
 
+class explorer:
+    
+    def __init__(self, codes):
+        self.codes = codes
+        self.dir = []
+        self.idx = 0
+    
+    def change_dir(self, s):
+        if s == '..':
+            self.dir.pop(-1)
+        else:
+            self.dir.append(s)
+        self.idx += 1
+    
+    def list_dir(self):
+        dir_contents = []
+        self.idx += 1
+        while self.idx < len(self.codes):
+            line = self.codes[self.idx].split(' ')
+            if line[0] == '$':
+                break
+            elif line[0] == 'dir':
+                dir_contents.append(['dir', self.dir.copy(), None])
+            else:
+                dir_contents.append(['file', self.dir.copy(), [line[1], line[0]]])
+            self.idx += 1
+    
+    def process_command(self, line):
+        if line[1] == 'cd':
+            self.change_dir(line[2])
+            return False, None
+        elif line[1] == 'ls':
+            dir_contents = self.list_dir()
+            return True, dir_contents
+        else:
+            raise Exception('bad parsing1')
+        
+    
+    def read_line(self):
+        line = self.codes[self.idx].split(' ')
+        if line[0] == '$':
+            has_output, output = self.process_command(line)
+        else:
+            raise Exception('bad parsing2')
+        if has_output:
+            return output
+            
+    def scan_directories(self, return_results = False):
+        results = []
+        while self.idx < len(self.codes):
+            results.append(self.read_line(return_results = True))
+        if return_results:
+            return results
+            
+x = explorer(q7input)
+print(x.scan_directories())
