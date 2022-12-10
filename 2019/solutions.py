@@ -88,22 +88,114 @@ class intcode_computer:
         self.inputs = inputs
         self.outputs = outputs
         self.debug = debug
+        self.opcode = 0
+        self.opinputs = []
+        self.params = []
+        self.can_run = True
+        self.can_restart = True
         
-    def process_block(self):
-        # process the current code block, including interpreting the code, reading the outputs, generating the outputs, and updating the index
-    
-    def process_code(code):
-        full_code = [int(x) for x in str(code)]
+    def process_code(self):
+        full_code = [int(x) for x in str(self.intcode[self.index])]
         for i in range(5-len(full_code)):
-            full_code.insert(0,0)
+            full_code.insert(0, 0)
         full_code = "".join([str(x) for x in full_code])
-        opcode = int(full_code[-2:])
-        params = [int(x) for x in full_code[:3][::-1]]
-        return opcode, params
+        self.opcode = int(full_code[-2:])
+        self.params = [int(x) for x in full_code[:3][::-1]]
+        
+    def get_inputs(self):
+        if self.opcode in (1, 2, 7, 8):
+            num_params = 2
+            write = True
+        elif self.opcode in (3):
+            num_params = 0
+            write = True
+        elif self.opcode in (4):
+            num_params = 1
+            write = False
+        elif self.opcode in (5, 6):
+            num_params = 2
+            write = False
+        self.opinputs = []
+        for i, p in zip(range(num_params), self.params[:num_params]):
+            if p == 0:
+                self.opinputs.append(self.intcode[self.intcode[self.index + i + 1]])
+            elif p == 1:
+                self.opinputs.append(self.intcode[self.index + i + 1])
+        if write:
+            self.opinputs.append(self.intcode[self.index + num_params])
     
+    def update_idx(self):
+        if self.opcode in (1, 2, 7, 8):
+            n = 4
+        elif self.opcode in (3, 4):
+            n = 2
+        elif self.opcode in (5, 6):
+            n = 3
+        self.index += n
     
+    def extend_intcode(self, idx):
+        while len(self.intcode) < (idx + 1):
+            self.intcode.append(0)
+    
+    def perform_operations(self):
+        # create aliases
+        op = self.opcode
+        ins = self.opinputs
+        code = self.intcode
+        # update index
+        self.update_idx()
+        # prepare for writing
+        if op in (3):
+            self.extend_intcode(ins[0])
+        elif op in (1, 2, 7, 8):
+            self.extend_intcode(ins[2])  
+        # perform operations
+        if op == 1:
+            code[ins[2]] = ins[0] + ins[1]
+        elif op == 2:
+            code[ins[2]] = ins[0] * ins[1]
+        elif op == 3:
+            code[ins[0]] = self.inputs.pop(0)
+        elif op == 4:
+            self.outputs.append(ins[0])
+        elif op == 5:
+            if ins[0] != 0:
+                self.index = ins[1]
+        elif op == 6:
+            if ins[0] == 0:
+                self.index = ins[1]
+        elif op == 7:
+            code[ins[2]] = 0
+            if ins[0] < ins[1]:
+                code[ins[2]] = 1
+        elif op == 8:
+            code[ins[2]] = 0
+            if ins[0] == ins[1]:
+                code[ins[2]] = 1
+        else: 
+            raise Exception('bad opcode')
+
+    def process_block(self):
+        self.process_code()
+        self.get_inputs()
+        if self.opcode == 99:
+            self.can_run = False
+            self.can_restart = False
+        elif (self.opcode == 3) & (len(self.inputs) == 0):
+            self.can_run = False
+            self.can_restart = True
+        else:
+            self.can_run = True
+            self.can_restart = True
+            self.perform_operations()
+    
+    def run_intcode(self):
+        while self.can_run:
+            self.process_block()
+        return self.opcode
         
 #%%
+
 def intcode_computer(intcode, intcode_input_list, intcode_output_list=[], idx=0, debug=False):
     
     

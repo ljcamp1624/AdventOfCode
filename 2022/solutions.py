@@ -1,5 +1,6 @@
 #%%
 import numpy as np
+import pandas as pd
 
 #%% tools
 def read_txt(file_name):
@@ -75,11 +76,112 @@ def parse_crates(crates):
                 stacks[i].append(row[c])
     return stacks
 
+def multidir_max(mat, i, j):
+    
+    out = False
+    v = -1
+    y = j
+    t1 = 0
+    tree = False
+    #up
+    for x in range(i-1, -1, -1):
+        v = max([v, int(mat[x][y])])
+        if tree:
+            continue
+        elif int(mat[i][j]) > v:
+            t1 += 1
+        elif int(mat[i][j]) <= v:
+            t1 += 1
+            tree = True
+    if int(mat[i][j]) > int(v):
+        out = True
+    
+    v = -1
+    t2 = 0
+    tree = False
+    #down
+    for x in range(i+1, len(mat)):
+        v = max([v, int(mat[x][y])])
+        if tree:
+            continue
+        elif int(mat[i][j]) > v:
+            t2 += 1
+        elif int(mat[i][j]) <= v:
+            t2 += 1
+            tree = True
+    if int(mat[i][j]) > int(v):
+        out = True
+    
+    v = -1
+    x = i
+    t3 = 0
+    tree = False
+    for y in range(j-1, -1, -1):
+        v = max([v, int(mat[x][y])])
+        if tree:
+            continue
+        elif int(mat[i][j]) > v:
+            t3 += 1
+        elif int(mat[i][j]) <= v:
+            t3 += 1
+            tree = True
+    if int(mat[i][j]) > int(v):
+        out = True
+    
+    v = -1
+    t4 = 0
+    tree = False
+    for y in range(j+1,len(mat[0])):
+        v = max([v, int(mat[x][y])])
+        if tree:
+            continue
+        elif int(mat[i][j]) > v:
+            t4 += 1
+        elif int(mat[i][j]) <= v:
+            t4 += 1
+            tree = True
+    if int(mat[i][j]) > int(v):
+        out = True
+    
+    return out, t1*t2*t3*t4
+
 def parse_moves(moves):
     move_list = []
     for s in moves:
         move_list.append([int(x) for x in s.split(' ')[1::2]])
     return move_list
+
+def move_head(head_pos, dir):
+    if dir == 'U':
+        head_pos[1] += 1
+    elif dir == 'D':
+        head_pos[1] += -1
+    elif dir == 'R':
+        head_pos[0] += 1
+    elif dir == 'L':
+        head_pos[0] += -1
+    return head_pos
+
+def move_tail(head_pos, tail_pos):
+    diff = []
+    for i in [0, 1]:
+        diff.append(head_pos[i] - tail_pos[i]) 
+    if max([abs(d) for d in diff])> 1:
+        for d, i in zip(diff, range(len(diff))):
+            tail_pos[i] += np.sign(d)
+    return tail_pos
+    
+def tail_trail(num_knots, moves):
+    knot_pos = [[0,0] for i in range(num_knots)]
+    trail = [[0,0]]
+    for line in q9input:
+        move = line.split(' ')
+        for x in range(int(move[1])):
+            knot_pos[0] = move_head(knot_pos[0], move[0])
+            for i in range(1, len(knot_pos)):
+                knot_pos[i] = move_tail(knot_pos[i-1], knot_pos[i])
+            trail.append(knot_pos[i].copy())
+    return trail
     
 #%% question 1
 q1input = read_txt(r'C:\Users\Lenny\Documents\GitHub\AdventOfCode\2022\q1input.txt')
@@ -197,6 +299,7 @@ print(signal_processor(q6input).get_packet_idx(4))
 print(signal_processor(q6input).get_packet_idx(14))
     
 #%%
+q7test = read_txt(r'C:\Users\Lenny\Documents\GitHub\AdventOfCode\2022\q7test.txt')[0]
 q7input = read_txt(r'C:\Users\Lenny\Documents\GitHub\AdventOfCode\2022\q7input.txt')[0]
 
 class explorer:
@@ -221,10 +324,12 @@ class explorer:
             if line[0] == '$':
                 break
             elif line[0] == 'dir':
-                dir_contents.append(['dir', self.dir.copy(), None])
+                pass
             else:
-                dir_contents.append(['file', self.dir.copy(), [line[1], line[0]]])
+                for i in range(len(self.dir)):
+                    dir_contents.append(['file', self.dir[:(i+1)], [line[1], line[0]]])
             self.idx += 1
+        return dir_contents
     
     def process_command(self, line):
         if line[1] == 'cd':
@@ -236,22 +341,119 @@ class explorer:
         else:
             raise Exception('bad parsing1')
         
-    
     def read_line(self):
         line = self.codes[self.idx].split(' ')
         if line[0] == '$':
             has_output, output = self.process_command(line)
         else:
             raise Exception('bad parsing2')
-        if has_output:
-            return output
+        return has_output, output
             
-    def scan_directories(self, return_results = False):
+    def scan_directories(self):
         results = []
         while self.idx < len(self.codes):
-            results.append(self.read_line(return_results = True))
-        if return_results:
-            return results
+            has_output, output = self.read_line()
+            if has_output:
+                results.extend(output)
+        return results
             
-x = explorer(q7input)
-print(x.scan_directories())
+
+contents = explorer(q7input).scan_directories()
+df = pd.DataFrame(contents, columns = ['type', 'dir_list', 'file'])
+df['dir'] = df['dir_list'].apply(lambda x: ''.join(x))
+df['size'] = df['file'].apply(lambda x: int(x[1]))
+sums = df.groupby('dir')['size'].sum()
+print(np.sum(sums[sums <= 100000]))
+
+max_size = 70000000
+min_free_space = 30000000
+free_space = max_size - sums.max()
+cands = []
+print(np.min(sums[(sums + free_space) > min_free_space]))
+
+#%%
+q8input = read_txt(r'C:\Users\Lenny\Documents\GitHub\AdventOfCode\2022\q8input.txt')[0]
+q8test = read_txt(r'C:\Users\Lenny\Documents\GitHub\AdventOfCode\2022\q8test.txt')[0]
+        
+z = q8input.copy()
+x = 0
+y = []
+for i in range(len(z)):
+    for j in range(len(z[0])):
+        o1, o2 = multidir_max(z, i, j)
+        x += o1
+        y.append(o2)
+        
+print(x, max(y))
+    
+#%% Question 9
+q9input = read_txt(r'C:\Users\Lenny\Documents\GitHub\AdventOfCode\2022\q9input.txt')[0]
+    
+out = []
+for t in tail_trail(2, q9input):
+    if t in out:
+        continue
+    else:
+        out.append(t)
+print(len(out))
+
+out = []
+for t in tail_trail(10, q9input):
+    if t in out:
+        continue
+    else:
+        out.append(t)
+print(len(out))
+
+    
+#%%
+q10input = read_txt(r'C:\Users\Lenny\Documents\GitHub\AdventOfCode\2022\q10input.txt')[0]
+
+c = 0
+i = 0
+x = 1
+cd = 0
+out = []
+while True:
+    
+    if cd == 0:
+        if i == len(q10input):
+            break
+        command = q10input[i]
+        inst = command.split(' ')[0]
+        i += 1
+        if inst == 'noop':
+            cd = 1
+        elif inst == 'addx':
+            val = int(command.split(' ')[1])
+            cd = 2
+    
+    c += 1
+    out.append([c, x])
+    
+    cd += -1
+    if cd == 0:
+        if inst == 'addx':
+            x += val
+            
+
+    
+z = 0    
+for c in [20, 60, 100, 140, 180, 220]:
+    print(out[c-1])
+    z += c*out[c-1][1]
+    
+print(z) 
+
+
+im = [['.' for i in range(40)] for i in range(6)]
+for row in range(len(im)):
+    for col in range(len(im[0])):
+        idx = len(im[0])*(row) + col
+        print(out[idx], out[idx][0] - row*len(im[0]))
+        if (out[idx][0] - row*len(im[0]) - 1) in range(out[idx][1]-1, out[idx][1]+2):
+            im[row][col] = '#'
+im2 = []
+for row2 in im:
+    im2.append(''.join(row2))
+print(im2)
