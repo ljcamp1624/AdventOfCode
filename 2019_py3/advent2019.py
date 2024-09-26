@@ -7,6 +7,20 @@
 # import time
 # from matplotlib.animation import FuncAnimation
 
+#%% Tools
+def read_txt(file_name):
+    out = []
+    v = []
+    for x in open(file_name, 'r').readlines():
+        n = x.split('\n')[0]
+        if len(n) == 0:
+            out.append(v)
+            v = []
+        else:
+            v.append(n)
+    out.append(v)
+    return out
+
 #%% Question 1
 def get_fuel(mass):
     fuel = np.max([np.floor(mass/3) - 2, 0]);
@@ -831,4 +845,96 @@ while True:
     
 print('final score: ', score);
     
+#%%
+
+input = read_txt(r'C:\Users\Leonard\Documents\GitHub\AdventOfCode\2019\q14input.txt')[0]
+
+
+
+in_list = []
+out_list = []
+for f in input:
+    ins = f.split(' => ')[0]
+    outs = f.split(' => ')[1]
+    ins = [x for x in ins.split(', ')]
+    outs = [x for x in outs.split(', ')]
+    in_list.append([(int(x.split(' ')[0]), x.split(' ')[1]) for x in ins])
+    out_list.append([(int(x.split(' ')[0]), x.split(' ')[1]) for x in outs])
+    
+
+def SimplifyRecipes(targets):
+    recipes = []
+    for i, outs in enumerate(out_list):
+        if any([o[1] == targets[1] for o in outs]):
+            recipes.append((i, [o[0] for o in outs if o[1] == targets[1]][0]))
+    options = []
+    for i, num_out in recipes:
+        options.append((in_list[i], num_out))
+        
+    return options
+
+def getOre(target, inventory={}):
+    # ore for this target
+    ore = 0
+    
+    # interpret inputs
+    val = target[1]
+    amount = target[0]
+    
+    # check inventory for any extra stuff
+    if val in inventory.keys():
+        from_inventory = min(inventory[val], amount)
+        amount += -from_inventory
+        inventory[val] += -from_inventory
+    if amount == 0:
+        return ore
+    
+    # if we need to make some stuff, pull the recipes
+    recipes = []
+    for i, outs in enumerate(out_list):
+        if any([o[1] == val for o in outs]):
+            recipes.append((i, [o[0] for o in outs if o[1] == val][0]))
+    
+    # process the recipe and update inventory
+    recipe = recipes[0]
+    ingredients = in_list[recipe[0]]
+    num_per_recipe = recipe[1]
+    num_times = -(amount // -num_per_recipe)
+    
+    # compute ore for the recipe
+    for ing in ingredients:
+        val2 = ing[1]
+        amount2 = ing[0]*num_times
+        if val2 == 'ORE':
+            ore += amount2
+        else:
+            ore += getOre((amount2, val2), inventory)
+
+    # add the extra to the inventory
+    extra = num_per_recipe*num_times - amount
+    if extra > 0:
+        if val in inventory.keys():
+            inventory[val] += extra
+        else:
+            inventory[val] = extra
+    
+    # output
+    return ore
+        
+        
+    
+num_fuel = 1
+ore_needed = getOre((num_fuel, 'FUEL'))
+print(ore_needed)
+
+max_ore = 1000000000000
+num_fuel = round(max_ore // ore_needed)
+while True:
+    ore_needed = getOre((num_fuel + 1, 'FUEL'))
+    if ore_needed < max_ore:
+        print(num_fuel)
+        num_fuel = round(num_fuel * max_ore / ore_needed)
+    else:
+        break
+print(num_fuel)
 
